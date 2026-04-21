@@ -1,0 +1,2274 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>정산시스템</title>
+    <meta
+      name="description"
+      content="일정 제목, 참석자, 벙주 혜택, 신입 선입금을 반영해 최종 정산을 계산하는 정산시스템 실행 파일"
+    />
+    <style>
+      :root {
+        --bg: #f8f4ea;
+        --bg-soft: #fffdf8;
+        --surface: rgba(255, 253, 248, 0.92);
+        --line: rgba(18, 61, 54, 0.12);
+        --text: #173732;
+        --muted: #53726b;
+        --primary: #0f8b7f;
+        --primary-deep: #0b635b;
+        --accent: #f08a4b;
+        --accent-soft: rgba(240, 138, 75, 0.16);
+        --success: #19745e;
+        --danger: #c8484d;
+        --warning: #946000;
+        --shadow: 0 28px 60px rgba(23, 55, 50, 0.12);
+        --radius-xl: 28px;
+        --radius-lg: 22px;
+        --radius-md: 16px;
+        --radius-sm: 12px;
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background:
+          radial-gradient(circle at top left, rgba(13, 139, 127, 0.12), transparent 30%),
+          linear-gradient(180deg, #fbf7ef 0%, #f4ede2 100%);
+        color: var(--text);
+        font-family: "SUIT Variable", "Pretendard Variable", "Noto Sans KR", sans-serif;
+        line-height: 1.5;
+      }
+
+      button,
+      input,
+      select {
+        font: inherit;
+      }
+
+      button {
+        cursor: pointer;
+      }
+
+      .backdrop {
+        position: fixed;
+        z-index: -1;
+        border-radius: 999px;
+        filter: blur(30px);
+        opacity: 0.42;
+        pointer-events: none;
+      }
+
+      .backdrop--mint {
+        width: 320px;
+        height: 320px;
+        top: 20px;
+        right: 8%;
+        background: rgba(15, 139, 127, 0.25);
+        animation: drift 12s ease-in-out infinite;
+      }
+
+      .backdrop--sand {
+        width: 240px;
+        height: 240px;
+        left: 6%;
+        top: 320px;
+        background: rgba(240, 138, 75, 0.22);
+        animation: drift 14s ease-in-out infinite reverse;
+      }
+
+      .app-shell {
+        width: min(1560px, calc(100% - 48px));
+        margin: 0 auto;
+        padding: 28px 0 40px;
+      }
+
+      .service-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 24px;
+        align-items: stretch;
+        margin-bottom: 24px;
+        padding: 24px 28px;
+        border: 1px solid rgba(18, 61, 54, 0.08);
+        border-radius: 30px;
+        background: rgba(255, 253, 248, 0.9);
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(18px);
+      }
+
+      .service-header h1 {
+        margin: 0;
+        font-family: "Space Grotesk", "SUIT Variable", sans-serif;
+        line-height: 1.08;
+        font-size: clamp(2rem, 3vw, 3.4rem);
+      }
+
+      .service-header__lead {
+        margin: 12px 0 0;
+        color: var(--muted);
+        max-width: 58ch;
+      }
+
+      .service-header__actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: flex-end;
+        align-content: flex-start;
+        flex-shrink: 0;
+      }
+
+      .service-header__intro {
+        min-width: 0;
+      }
+
+      .section-kicker {
+        margin: 0 0 8px;
+        color: var(--primary-deep);
+        font-family: "Space Grotesk", "SUIT Variable", sans-serif;
+        font-size: 0.82rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .panel__header h2,
+      .card__header h3 {
+        margin: 0;
+        font-family: "Space Grotesk", "SUIT Variable", sans-serif;
+        line-height: 1.08;
+      }
+
+      .workspace {
+        display: grid;
+        grid-template-columns: minmax(360px, 560px) minmax(0, 1fr);
+        gap: 28px;
+        align-items: start;
+      }
+
+      .panel {
+        border: 1px solid rgba(18, 61, 54, 0.08);
+        border-radius: 36px;
+        background: var(--surface);
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(18px);
+        overflow: hidden;
+      }
+
+      .panel--controls,
+      .panel--results {
+        padding: 22px;
+        min-width: 0;
+      }
+
+      .panel__header,
+      .card__header {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: flex-start;
+      }
+
+      .panel__header {
+        margin-bottom: 18px;
+      }
+
+      .panel__actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .panel__header > div,
+      .card__header > div,
+      .round-editor__header > div:first-child,
+      .round-result__top > div:first-child {
+        min-width: 0;
+      }
+
+      .stack {
+        display: grid;
+        gap: 18px;
+      }
+
+      .card {
+        padding: 20px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius-lg);
+        background: rgba(255, 255, 255, 0.86);
+        min-width: 0;
+      }
+
+      .card--result {
+        margin-top: 18px;
+      }
+
+      .card__footer {
+        margin-top: 16px;
+      }
+
+      .field-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .field {
+        display: grid;
+        gap: 8px;
+        min-width: 0;
+      }
+
+      .field__label {
+        color: var(--muted);
+        font-size: 0.94rem;
+      }
+
+      input[type="text"],
+      input[type="number"],
+      select {
+        width: 100%;
+        padding: 14px 16px;
+        border: 1px solid rgba(18, 61, 54, 0.16);
+        border-radius: var(--radius-sm);
+        background: var(--bg-soft);
+        color: var(--text);
+        transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      input[type="text"]:focus,
+      input[type="number"]:focus,
+      select:focus {
+        outline: none;
+        border-color: var(--primary);
+        transform: translateY(-1px);
+        box-shadow: 0 0 0 4px rgba(15, 139, 127, 0.12);
+      }
+
+      .inline-form {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: end;
+      }
+
+      .inline-form--guest {
+        grid-template-columns: minmax(0, 1fr) auto auto;
+      }
+
+      .inline-form--guest .checkbox--inline {
+        align-self: end;
+        justify-content: center;
+        padding-inline: 16px;
+        white-space: nowrap;
+      }
+
+      .inline-form--guest .button {
+        align-self: end;
+      }
+
+      .checkbox {
+        display: inline-flex;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .checkbox--inline {
+        min-height: 48px;
+        padding: 0 14px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: #fff;
+      }
+
+      .checkbox--disabled {
+        opacity: 0.5;
+      }
+
+      .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 48px;
+        padding: 0 18px;
+        border: none;
+        border-radius: 999px;
+        text-decoration: none;
+        transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+        white-space: nowrap;
+      }
+
+      .button:hover {
+        transform: translateY(-1px);
+      }
+
+      .button--primary {
+        background: linear-gradient(135deg, var(--primary), #11a395);
+        color: #fff;
+        box-shadow: 0 12px 28px rgba(15, 139, 127, 0.22);
+      }
+
+      .button--ghost {
+        background: rgba(255, 255, 255, 0.72);
+        border: 1px solid var(--line);
+        color: var(--text);
+      }
+
+      .button--soft {
+        background: var(--accent-soft);
+        color: #8b4818;
+      }
+
+      .button--danger {
+        background: rgba(200, 72, 77, 0.12);
+        color: var(--danger);
+      }
+
+      .button:disabled {
+        opacity: 0.55;
+        cursor: default;
+        transform: none;
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 0.84rem;
+        white-space: nowrap;
+      }
+
+      .badge--info {
+        background: rgba(15, 139, 127, 0.12);
+        color: var(--primary-deep);
+      }
+
+      .badge--new {
+        background: rgba(240, 138, 75, 0.16);
+        color: #8b4818;
+      }
+
+      .badge--host {
+        background: rgba(15, 139, 127, 0.12);
+        color: var(--primary-deep);
+      }
+
+      .badge--success {
+        background: rgba(25, 116, 94, 0.12);
+        color: var(--success);
+      }
+
+      .badge--warning {
+        background: rgba(148, 96, 0, 0.12);
+        color: var(--warning);
+      }
+
+      .badge--danger {
+        background: rgba(200, 72, 77, 0.12);
+        color: var(--danger);
+      }
+
+      .guest-list,
+      .round-editors,
+      .round-results {
+        display: grid;
+        gap: 14px;
+      }
+
+      .guest-item,
+      .round-editor,
+      .round-result {
+        border: 1px solid var(--line);
+        border-radius: var(--radius-md);
+        background: var(--bg-soft);
+      }
+
+      .guest-item {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: flex-start;
+        padding: 14px 16px;
+      }
+
+      .guest-item__meta {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .guest-item__actions {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        flex-shrink: 0;
+      }
+
+      .guest-item__body {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .guest-item__name {
+        font-weight: 700;
+      }
+
+      .round-editor,
+      .round-result {
+        padding: 18px;
+        min-width: 0;
+      }
+
+      .round-editor__header,
+      .round-result__top {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: flex-start;
+      }
+
+      .round-editor__sub,
+      .hint {
+        margin: 8px 0 0;
+        color: var(--muted);
+        font-size: 0.92rem;
+        max-width: 48ch;
+      }
+
+      .attendee-grid {
+        display: grid;
+        gap: 10px;
+        margin-top: 16px;
+      }
+
+      .attendee-row {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0;
+        align-items: center;
+      }
+
+      .attendee-pill {
+        display: inline-flex;
+        gap: 10px;
+        align-items: center;
+        justify-content: flex-start;
+        width: 100%;
+        padding: 12px 14px;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: #fff;
+        min-width: 0;
+        flex-wrap: wrap;
+      }
+
+      .attendee-pill input {
+        margin: 0;
+      }
+
+      .attendee-pill--fixed {
+        background: rgba(15, 139, 127, 0.08);
+        color: var(--primary-deep);
+      }
+
+      .feedback {
+        min-height: 24px;
+        margin-bottom: 8px;
+        color: var(--primary-deep);
+        font-size: 0.94rem;
+      }
+
+      .validation-box {
+        display: grid;
+        gap: 10px;
+      }
+
+      .validation-card {
+        padding: 14px 16px;
+        border-radius: var(--radius-md);
+        border: 1px solid rgba(148, 96, 0, 0.14);
+        background: rgba(255, 239, 204, 0.84);
+        color: #6b4a00;
+      }
+
+      .validation-card--ok {
+        border-color: rgba(25, 116, 94, 0.14);
+        background: rgba(227, 248, 239, 0.86);
+        color: var(--success);
+      }
+
+      .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 14px;
+      }
+
+      .summary-card {
+        padding: 18px;
+        border-radius: var(--radius-md);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(247, 243, 236, 0.94));
+        border: 1px solid var(--line);
+        min-width: 0;
+      }
+
+      .summary-card__label {
+        display: block;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      .summary-card__value {
+        display: block;
+        margin-top: 10px;
+        font-family: "Space Grotesk", "SUIT Variable", sans-serif;
+        font-size: clamp(1.28rem, 2.2vw, 1.6rem);
+        font-weight: 700;
+        overflow-wrap: anywhere;
+      }
+
+      .summary-card__note {
+        display: block;
+        margin-top: 8px;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      .round-result__stats {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .mini-stat {
+        padding: 10px 12px;
+        border-radius: 14px;
+        background: rgba(15, 139, 127, 0.08);
+        color: var(--primary-deep);
+        font-size: 0.92rem;
+      }
+
+      .table-shell {
+        overflow-x: auto;
+        min-width: 0;
+      }
+
+      .result-table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+      }
+
+      .result-table--round {
+        min-width: 0;
+      }
+
+      .result-table--round th:nth-child(1),
+      .result-table--round td:nth-child(1) {
+        width: 34%;
+      }
+
+      .result-table--round th:nth-child(2),
+      .result-table--round td:nth-child(2) {
+        width: 140px;
+      }
+
+      .result-table--round th:nth-child(3),
+      .result-table--round td:nth-child(3) {
+        width: 180px;
+        text-align: right;
+      }
+
+      .result-table--total {
+        min-width: 1180px;
+      }
+
+      .result-table--total th:nth-child(1),
+      .result-table--total td:nth-child(1) {
+        width: 16%;
+      }
+
+      .result-table--total th:nth-child(2),
+      .result-table--total td:nth-child(2) {
+        width: 34%;
+      }
+
+      .result-table--total th:nth-child(3),
+      .result-table--total td:nth-child(3) {
+        width: 12%;
+      }
+
+      .result-table--total th:nth-child(4),
+      .result-table--total td:nth-child(4) {
+        width: 10%;
+      }
+
+      .result-table--total th:nth-child(5),
+      .result-table--total td:nth-child(5) {
+        width: 12%;
+      }
+
+      .result-table--total th:nth-child(6),
+      .result-table--total td:nth-child(6) {
+        width: 16%;
+      }
+
+      th,
+      td {
+        padding: 14px 12px;
+        border-bottom: 1px solid rgba(18, 61, 54, 0.08);
+        text-align: left;
+        vertical-align: middle;
+      }
+
+      th {
+        color: var(--muted);
+        font-size: 0.9rem;
+        font-weight: 600;
+      }
+
+      .result-table--total th:nth-child(3),
+      .result-table--total td:nth-child(3),
+      .result-table--total th:nth-child(4),
+      .result-table--total td:nth-child(4),
+      .result-table--total th:nth-child(6),
+      .result-table--total td:nth-child(6) {
+        text-align: right;
+      }
+
+      .cell-stack {
+        display: grid;
+        gap: 8px;
+        min-width: 0;
+      }
+
+      .cell-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .cell-status {
+        display: flex;
+        align-items: center;
+        min-height: 100%;
+      }
+
+      .cell-value {
+        display: inline-block;
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .cell-joined {
+        line-height: 1.6;
+        overflow-wrap: anywhere;
+      }
+
+      tbody tr:hover {
+        background: rgba(15, 139, 127, 0.03);
+      }
+
+      .text-strong {
+        font-weight: 700;
+      }
+
+      .text-muted {
+        color: var(--muted);
+        overflow-wrap: anywhere;
+      }
+
+      .empty-state {
+        padding: 22px;
+        border: 1px dashed rgba(18, 61, 54, 0.18);
+        border-radius: var(--radius-md);
+        color: var(--muted);
+        text-align: center;
+      }
+
+      @keyframes drift {
+        0%,
+        100% {
+          transform: translate3d(0, 0, 0);
+        }
+        50% {
+          transform: translate3d(16px, 14px, 0);
+        }
+      }
+
+      @media (max-width: 1160px) {
+        .workspace {
+          grid-template-columns: 1fr;
+        }
+
+        .service-header {
+          flex-direction: column;
+          align-items: stretch;
+        }
+      }
+
+      @media (max-width: 980px) {
+        .inline-form--guest {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .inline-form--guest .field {
+          grid-column: 1 / -1;
+        }
+
+        .inline-form--guest .button {
+          grid-column: 1 / -1;
+        }
+      }
+
+      @media (max-width: 760px) {
+        .app-shell {
+          width: min(100% - 24px, 1360px);
+        }
+
+        .service-header {
+          padding: 18px;
+        }
+
+        .panel {
+          border-radius: 24px;
+        }
+
+        .field-grid,
+        .inline-form,
+        .summary-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .panel__header,
+        .card__header,
+        .round-result__top,
+        .guest-item,
+        .round-editor__header,
+        .service-header {
+          flex-direction: column;
+          align-items: stretch;
+        }
+
+        .panel__actions,
+        .service-header__actions,
+        .guest-item__actions,
+        .attendee-row {
+          width: 100%;
+        }
+
+        .guest-item__actions .checkbox--inline {
+          width: 100%;
+          justify-content: center;
+        }
+
+        .service-header__actions .button,
+        .panel__actions .button,
+        .inline-form .button,
+        .card__footer .button {
+          width: 100%;
+        }
+
+        .attendee-row {
+          grid-template-columns: 1fr;
+        }
+
+        table,
+        thead,
+        tbody,
+        th,
+        td,
+        tr {
+          display: block;
+        }
+
+        thead {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          padding: 0;
+          margin: -1px;
+          overflow: hidden;
+          clip: rect(0, 0, 0, 0);
+          white-space: nowrap;
+          border: 0;
+        }
+
+        tbody {
+          display: grid;
+          gap: 12px;
+        }
+
+        tbody tr {
+          border: 1px solid rgba(18, 61, 54, 0.08);
+          border-radius: 16px;
+          background: rgba(255, 255, 255, 0.88);
+          overflow: hidden;
+        }
+
+        td {
+          display: grid;
+          grid-template-columns: 88px minmax(0, 1fr);
+          gap: 12px;
+          padding: 12px 14px;
+          border-bottom: 1px solid rgba(18, 61, 54, 0.08);
+        }
+
+        td:last-child {
+          border-bottom: none;
+        }
+
+        td::before {
+          content: attr(data-label);
+          color: var(--muted);
+          font-size: 0.86rem;
+          font-weight: 600;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+
+        *,
+        *::before,
+        *::after {
+          animation: none !important;
+          transition-duration: 0.01ms !important;
+          transition-delay: 0ms !important;
+          scroll-behavior: auto !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="backdrop backdrop--mint"></div>
+    <div class="backdrop backdrop--sand"></div>
+
+    <main class="app-shell">
+      <section class="service-header">
+        <div class="service-header__intro">
+          <h1>정산시스템</h1>
+          <p class="service-header__lead">
+            일정별 참석자를 체크하고, 신입은 참석자 목록에서 한 번만 설정해 최종 정산까지 바로 확인합니다.
+          </p>
+        </div>
+
+        <div class="service-header__actions">
+          <button class="button button--soft" id="resetAllBtn" type="button">
+            전체 초기화
+          </button>
+        </div>
+      </section>
+
+      <div id="workspace" class="workspace">
+        <section class="panel panel--controls">
+          <div class="panel__header">
+            <div>
+              <h2>정산 입력</h2>
+            </div>
+          </div>
+
+          <div class="stack">
+            <article class="card">
+              <div class="card__header">
+                <div>
+                  <h3>기본 정보</h3>
+                </div>
+              </div>
+
+              <label class="field">
+                <span class="field__label">벙주 닉네임</span>
+                <input id="hostNameInput" type="text" placeholder="예: 벙주민트" />
+              </label>
+
+              <div class="field-grid">
+                <label class="field">
+                  <span class="field__label">계좌 유형/기관</span>
+                  <select id="accountTypeSelect" aria-label="계좌 유형 또는 기관 선택"></select>
+                </label>
+
+                <label class="field">
+                  <span class="field__label">계좌번호</span>
+                  <input
+                    id="accountNumberInput"
+                    type="text"
+                    inputmode="numeric"
+                    placeholder="예: 3333-12-1234567"
+                  />
+                </label>
+              </div>
+            </article>
+
+            <article class="card">
+              <div class="card__header">
+                <div>
+                  <h3>참석자 목록</h3>
+                </div>
+                <span class="badge badge--info">벙주는 자동 포함</span>
+              </div>
+
+              <form id="guestForm" class="inline-form inline-form--guest">
+                <label class="field">
+                  <span class="field__label">참석자 닉네임</span>
+                  <input id="guestNameInput" type="text" placeholder="예: 리버" />
+                </label>
+
+                <label class="checkbox checkbox--inline">
+                  <input id="guestNewInput" type="checkbox" />
+                  <span>신입</span>
+                </label>
+
+                <button class="button button--primary" type="submit">참석자 추가</button>
+              </form>
+
+              <div id="guestList" class="guest-list"></div>
+            </article>
+
+            <article class="card">
+              <div class="card__header">
+                <div>
+                  <h3>일정별 정산 카드</h3>
+                </div>
+              </div>
+
+              <div id="roundEditors" class="round-editors"></div>
+
+              <div class="card__footer">
+                <button class="button button--soft" id="addRoundBtn" type="button">
+                  정산 카드 추가
+                </button>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel panel--results">
+          <div class="panel__header">
+            <div>
+              <h2>정산 결과</h2>
+            </div>
+
+            <div class="panel__actions">
+              <button class="button button--ghost" id="copyRoundSummaryBtn" type="button">
+                일정별 요약 복사
+              </button>
+              <button class="button button--primary" id="copyTotalSummaryBtn" type="button">
+                총합 요약 복사
+              </button>
+            </div>
+          </div>
+
+          <div id="copyFeedback" class="feedback" role="status" aria-live="polite"></div>
+          <div id="validationBox" class="validation-box" aria-live="polite" aria-atomic="true"></div>
+          <div id="summaryCards" class="summary-grid" aria-live="polite" aria-atomic="true"></div>
+
+          <article class="card card--result">
+            <div class="card__header">
+              <div>
+                <h3>일정별 상세 결과</h3>
+              </div>
+            </div>
+            <div id="roundResults" class="round-results" aria-live="polite" aria-atomic="true"></div>
+          </article>
+
+          <article class="card card--result">
+            <div class="card__header">
+              <div>
+                <h3>최종 총합 정산표</h3>
+              </div>
+            </div>
+            <div id="totalResults" class="table-shell" aria-live="polite" aria-atomic="true"></div>
+          </article>
+        </section>
+      </div>
+    </main>
+
+    <script>
+      const NEW_MEMBER_ADVANCE = 30000;
+      const STORAGE_KEY = "settlement-system-prototype-v5";
+
+      const ACCOUNT_INSTITUTION_GROUPS = [
+        {
+          label: "시중은행",
+          options: [
+            "KB국민은행",
+            "신한은행",
+            "하나은행",
+            "우리은행",
+            "NH농협은행",
+            "IBK기업은행",
+            "SC제일은행",
+            "한국씨티은행",
+          ],
+        },
+        {
+          label: "인터넷은행",
+          options: ["카카오뱅크", "케이뱅크", "토스뱅크"],
+        },
+        {
+          label: "지방/특수은행",
+          options: [
+            "BNK부산은행",
+            "iM뱅크",
+            "BNK경남은행",
+            "광주은행",
+            "전북은행",
+            "제주은행",
+            "Sh수협은행",
+            "한국산업은행",
+            "한국수출입은행",
+            "우체국예금",
+          ],
+        },
+        {
+          label: "상호금융/기타",
+          options: ["새마을금고", "신협", "저축은행", "산림조합", "농축협"],
+        },
+        {
+          label: "증권사",
+          options: [
+            "미래에셋증권",
+            "삼성증권",
+            "한국투자증권",
+            "NH투자증권",
+            "KB증권",
+            "키움증권",
+            "신한투자증권",
+            "하나증권",
+            "대신증권",
+            "메리츠증권",
+            "토스증권",
+            "유안타증권",
+          ],
+        },
+      ];
+
+      const ROUND_OPTIONS = Array.from({ length: 30 }, (_, index) => index + 1);
+
+      const state = {
+        hostName: "",
+        accountType: "",
+        accountNumber: "",
+        guests: [],
+        rounds: [],
+      };
+
+      let guestSequence = 1;
+      let roundSequence = 1;
+
+      const dom = {
+        hostNameInput: document.querySelector("#hostNameInput"),
+        accountTypeSelect: document.querySelector("#accountTypeSelect"),
+        accountNumberInput: document.querySelector("#accountNumberInput"),
+        guestForm: document.querySelector("#guestForm"),
+        guestNameInput: document.querySelector("#guestNameInput"),
+        guestNewInput: document.querySelector("#guestNewInput"),
+        guestList: document.querySelector("#guestList"),
+        addRoundBtn: document.querySelector("#addRoundBtn"),
+        roundEditors: document.querySelector("#roundEditors"),
+        summaryCards: document.querySelector("#summaryCards"),
+        roundResults: document.querySelector("#roundResults"),
+        totalResults: document.querySelector("#totalResults"),
+        validationBox: document.querySelector("#validationBox"),
+        copyFeedback: document.querySelector("#copyFeedback"),
+        copyRoundSummaryBtn: document.querySelector("#copyRoundSummaryBtn"),
+        copyTotalSummaryBtn: document.querySelector("#copyTotalSummaryBtn"),
+        resetAllBtn: document.querySelector("#resetAllBtn"),
+      };
+
+      initialize();
+
+      function initialize() {
+        populateAccountTypeSelect();
+        restoreState();
+        normalizeUniqueRoundValues();
+
+        if (!state.rounds.length) {
+          state.rounds = [createRound()];
+        }
+
+        syncRoundOrders();
+        refreshSequences();
+        bindEvents();
+        render();
+      }
+
+      function populateAccountTypeSelect() {
+        const groups = ACCOUNT_INSTITUTION_GROUPS.map(
+          (group) => `
+            <optgroup label="${group.label}">
+              ${group.options
+                .map(
+                  (option) => `
+                    <option value="${option}">${option}</option>
+                  `
+                )
+                .join("")}
+            </optgroup>
+          `
+        ).join("");
+
+        dom.accountTypeSelect.innerHTML = `
+          <option value="">계좌 유형/기관 선택</option>
+          ${groups}
+        `;
+      }
+
+      function restoreState() {
+        try {
+          const saved = window.localStorage.getItem(STORAGE_KEY);
+          if (!saved) {
+            return;
+          }
+
+          const parsed = JSON.parse(saved);
+          state.hostName = typeof parsed.hostName === "string" ? parsed.hostName : "";
+          state.accountType = typeof parsed.accountType === "string" ? parsed.accountType : "";
+          state.accountNumber = typeof parsed.accountNumber === "string" ? parsed.accountNumber : "";
+          state.guests = Array.isArray(parsed.guests)
+            ? parsed.guests
+                .filter((guest) => guest && typeof guest.name === "string")
+                .map((guest) => ({
+                  id: String(guest.id),
+                  name: guest.name,
+                  isNew: Boolean(guest.isNew),
+                }))
+            : [];
+          state.rounds = Array.isArray(parsed.rounds)
+            ? parsed.rounds
+                .filter((round) => round)
+                .map((round, index) => ({
+                  id: String(round.id ?? `round-${index + 1}`),
+                  cardOrder: index + 1,
+                  roundValue: Math.max(1, toInteger(round.roundValue) || 1),
+                  scheduleTitle: typeof round.scheduleTitle === "string" ? round.scheduleTitle : "",
+                  totalAmount: Math.max(0, toInteger(round.totalAmount)),
+                  attendees: Array.isArray(round.attendees)
+                    ? round.attendees
+                        .filter((attendee) => attendee && attendee.guestId)
+                        .map((attendee) => ({
+                          guestId: String(attendee.guestId),
+                        }))
+                    : [],
+                }))
+            : [];
+        } catch (error) {
+          window.localStorage.removeItem(STORAGE_KEY);
+        }
+      }
+
+      function saveState() {
+        try {
+          window.localStorage.setItem(
+            STORAGE_KEY,
+            JSON.stringify({
+              hostName: state.hostName,
+              accountType: state.accountType,
+              accountNumber: state.accountNumber,
+              guests: state.guests,
+              rounds: state.rounds,
+            })
+          );
+        } catch (error) {
+          // Ignore storage failures in the prototype.
+        }
+      }
+
+      function bindEvents() {
+        dom.hostNameInput.addEventListener("input", (event) => {
+          state.hostName = event.target.value;
+          render();
+        });
+
+        dom.accountTypeSelect.addEventListener("change", (event) => {
+          state.accountType = event.target.value;
+          renderResultsOnly();
+        });
+
+        dom.accountNumberInput.addEventListener("input", (event) => {
+          state.accountNumber = event.target.value;
+          renderResultsOnly();
+        });
+
+        dom.guestForm.addEventListener("submit", (event) => {
+          event.preventDefault();
+          addGuest();
+        });
+
+        dom.guestList.addEventListener("click", (event) => {
+          const button = event.target.closest("[data-remove-guest]");
+          if (!button) {
+            return;
+          }
+
+          removeGuest(button.dataset.removeGuest);
+        });
+
+        dom.guestList.addEventListener("change", (event) => {
+          if (!event.target.matches("[data-toggle-new-guest]")) {
+            return;
+          }
+
+          updateGuestNewStatus(event.target.dataset.toggleNewGuest, event.target.checked);
+        });
+
+        dom.addRoundBtn.addEventListener("click", () => {
+          if (getAvailableRoundValue() === null) {
+            setFeedback("선택 가능한 차수를 모두 사용했습니다.");
+            return;
+          }
+
+          state.rounds.push(createRound());
+          syncRoundOrders();
+          render();
+        });
+
+        dom.roundEditors.addEventListener("input", handleRoundEditorInput);
+        dom.roundEditors.addEventListener("change", handleRoundEditorInput);
+        dom.roundEditors.addEventListener("click", (event) => {
+          const button = event.target.closest("[data-remove-round]");
+          if (!button) {
+            return;
+          }
+
+          removeRound(button.dataset.removeRound);
+        });
+
+        dom.copyRoundSummaryBtn.addEventListener("click", async () => {
+          const calculations = calculateSettlement();
+          await copyToClipboard(buildRoundSummaryText(calculations), "일정별 요약을 복사했습니다.");
+        });
+
+        dom.copyTotalSummaryBtn.addEventListener("click", async () => {
+          const calculations = calculateSettlement();
+          await copyToClipboard(buildTotalSummaryText(calculations), "총합 요약을 복사했습니다.");
+        });
+
+        dom.resetAllBtn.addEventListener("click", () => {
+          resetState();
+        });
+      }
+
+      function handleRoundEditorInput(event) {
+        const container = event.target.closest("[data-round-id]");
+        if (!container) {
+          return;
+        }
+
+        const round = state.rounds.find((item) => item.id === container.dataset.roundId);
+        if (!round) {
+          return;
+        }
+
+        if (event.target.matches("[data-field='scheduleTitle']")) {
+          round.scheduleTitle = event.target.value;
+          renderResultsOnly();
+          return;
+        }
+
+        if (event.target.matches("[data-field='roundValue']")) {
+          const nextValue = Math.max(1, toInteger(event.target.value));
+          if (getUsedRoundValues(round.id).has(nextValue)) {
+            setFeedback(`${nextValue}차는 이미 다른 일정 카드에서 사용 중입니다.`);
+            render();
+            return;
+          }
+
+          round.roundValue = nextValue;
+          render();
+          return;
+        }
+
+        if (event.target.matches("[data-field='totalAmount']")) {
+          round.totalAmount = Math.max(0, toInteger(event.target.value));
+          renderResultsOnly();
+          return;
+        }
+
+        if (event.target.matches("[data-attendee-id]")) {
+          toggleRoundAttendee(round, event.target.dataset.attendeeId, event.target.checked);
+          render();
+          return;
+        }
+
+      }
+
+      function createRound() {
+        return {
+          id: `round-${roundSequence++}`,
+          cardOrder: state.rounds.length + 1,
+          roundValue: getAvailableRoundValue() ?? ROUND_OPTIONS[0],
+          scheduleTitle: "",
+          totalAmount: 0,
+          attendees: [],
+        };
+      }
+
+      function createGuest(name, isNew = false) {
+        return {
+          id: `guest-${guestSequence++}`,
+          name,
+          isNew,
+        };
+      }
+
+      function refreshSequences() {
+        guestSequence = getNextSequence(state.guests.map((guest) => guest.id), "guest");
+        roundSequence = getNextSequence(state.rounds.map((round) => round.id), "round");
+      }
+
+      function getNextSequence(ids, prefix) {
+        const highest = ids.reduce((max, id) => {
+          const match = String(id).match(new RegExp(`^${prefix}-(\\d+)$`));
+          if (!match) {
+            return max;
+          }
+          return Math.max(max, Number.parseInt(match[1], 10));
+        }, 0);
+
+        return highest + 1;
+      }
+
+      function syncRoundOrders() {
+        state.rounds.forEach((round, index) => {
+          round.cardOrder = index + 1;
+        });
+      }
+
+      function getUsedRoundValues(excludedRoundId = null) {
+        return new Set(
+          state.rounds
+            .filter((round) => round.id !== excludedRoundId)
+            .map((round) => round.roundValue)
+        );
+      }
+
+      function getAvailableRoundValue(excludedRoundId = null) {
+        const used = getUsedRoundValues(excludedRoundId);
+        return ROUND_OPTIONS.find((option) => !used.has(option)) ?? null;
+      }
+
+      function normalizeUniqueRoundValues() {
+        const used = new Set();
+
+        state.rounds.forEach((round) => {
+          const currentValue = Math.max(1, toInteger(round.roundValue) || ROUND_OPTIONS[0]);
+          if (ROUND_OPTIONS.includes(currentValue) && !used.has(currentValue)) {
+            round.roundValue = currentValue;
+            used.add(currentValue);
+            return;
+          }
+
+          const replacement = ROUND_OPTIONS.find((option) => !used.has(option));
+          if (replacement !== undefined) {
+            round.roundValue = replacement;
+            used.add(replacement);
+          }
+        });
+      }
+
+      function addGuest() {
+        const name = dom.guestNameInput.value.trim();
+        const isNew = dom.guestNewInput.checked;
+
+        if (!name) {
+          setFeedback("참석자 닉네임을 입력해 주세요.");
+          dom.guestNameInput.focus();
+          return;
+        }
+
+        if (state.hostName.trim() && name === state.hostName.trim()) {
+          setFeedback("벙주 닉네임과 동일한 참석자는 추가할 수 없습니다.");
+          return;
+        }
+
+        if (state.guests.some((guest) => guest.name === name)) {
+          setFeedback("같은 닉네임의 참석자가 이미 있습니다.");
+          return;
+        }
+
+        state.guests.push(createGuest(name, isNew));
+        dom.guestForm.reset();
+        setFeedback("참석자를 추가했습니다.");
+        render();
+      }
+
+      function updateGuestNewStatus(guestId, checked) {
+        const guest = state.guests.find((item) => item.id === guestId);
+        if (!guest) {
+          return;
+        }
+
+        guest.isNew = checked;
+        setFeedback(checked ? "신입 참석자로 표시했습니다." : "신입 표시를 해제했습니다.");
+        render();
+      }
+
+      function removeGuest(guestId) {
+        state.guests = state.guests.filter((guest) => guest.id !== guestId);
+        state.rounds.forEach((round) => {
+          round.attendees = round.attendees.filter((attendee) => attendee.guestId !== guestId);
+        });
+        setFeedback("참석자를 삭제했습니다.");
+        render();
+      }
+
+      function removeRound(roundId) {
+        if (state.rounds.length === 1) {
+          setFeedback("최소 1개의 일정 카드는 필요합니다.");
+          return;
+        }
+
+        state.rounds = state.rounds.filter((round) => round.id !== roundId);
+        syncRoundOrders();
+        setFeedback("일정 카드를 삭제했습니다.");
+        render();
+      }
+
+      function toggleRoundAttendee(round, guestId, checked) {
+        const index = round.attendees.findIndex((attendee) => attendee.guestId === guestId);
+
+        if (checked && index === -1) {
+          round.attendees.push({ guestId });
+          return;
+        }
+
+        if (!checked && index >= 0) {
+          round.attendees.splice(index, 1);
+        }
+      }
+
+      function resetState() {
+        state.hostName = "";
+        state.accountType = "";
+        state.accountNumber = "";
+        state.guests = [];
+        state.rounds = [createRound()];
+        syncRoundOrders();
+        try {
+          window.localStorage.removeItem(STORAGE_KEY);
+        } catch (error) {
+          // Ignore storage failures in the prototype.
+        }
+        setFeedback("서비스 화면을 초기 상태로 되돌렸습니다.");
+        render();
+      }
+
+      function syncInputsFromState() {
+        dom.hostNameInput.value = state.hostName;
+        dom.accountTypeSelect.value = state.accountType;
+        dom.accountNumberInput.value = state.accountNumber;
+        dom.guestForm.reset();
+      }
+
+      function render() {
+        syncInputsFromState();
+        renderGuestList();
+        renderRoundEditors();
+        dom.addRoundBtn.disabled = getAvailableRoundValue() === null;
+        renderResultsOnly();
+      }
+
+      function renderResultsOnly() {
+        const calculations = calculateSettlement();
+        renderValidation(calculations.validationMessages);
+        renderSummaryCards(calculations.summary);
+        renderRoundResults(calculations.rounds);
+        renderTotalResults(calculations.participants, calculations.summary);
+        updateFieldAccessibility(calculations.validationMessages);
+        saveState();
+      }
+
+      function renderGuestList() {
+        const hostName = state.hostName.trim() || "벙주 미입력";
+        const hostCard = `
+          <div class="guest-item">
+            <div class="guest-item__body">
+              <div class="guest-item__meta">
+                <span class="guest-item__name">${escapeHtml(hostName)}</span>
+                <span class="badge badge--host">벙주</span>
+              </div>
+              <div class="text-muted">모든 일정 카드에 자동 포함됩니다.</div>
+            </div>
+          </div>
+        `;
+
+        if (!state.guests.length) {
+          dom.guestList.innerHTML = `
+            ${hostCard}
+            <div class="empty-state">아직 추가된 일반 참석자가 없습니다.</div>
+          `;
+          return;
+        }
+
+        const guestsMarkup = state.guests
+          .map(
+            (guest) => `
+              <div class="guest-item">
+                <div class="guest-item__body">
+                  <div class="guest-item__meta">
+                    <span class="guest-item__name">${escapeHtml(guest.name)}</span>
+                    ${guest.isNew ? '<span class="badge badge--new">신입</span>' : ""}
+                  </div>
+                  <div class="text-muted">일정 카드에서는 참석만 체크하면 신입 여부가 자동 반영됩니다.</div>
+                </div>
+                <div class="guest-item__actions">
+                  <label class="checkbox checkbox--inline">
+                    <input
+                      type="checkbox"
+                      data-toggle-new-guest="${guest.id}"
+                      ${guest.isNew ? "checked" : ""}
+                    />
+                    <span>신입</span>
+                  </label>
+                  <button class="button button--danger" type="button" data-remove-guest="${guest.id}">
+                    삭제
+                  </button>
+                </div>
+              </div>
+            `
+          )
+          .join("");
+
+        dom.guestList.innerHTML = `${hostCard}${guestsMarkup}`;
+      }
+
+      function renderRoundEditors() {
+        dom.roundEditors.innerHTML = state.rounds
+          .map((round) => {
+            const participantCount = 1 + round.attendees.length;
+            const usedByOthers = getUsedRoundValues(round.id);
+            const roundOptions = ROUND_OPTIONS.map(
+              (option) => `
+                <option
+                  value="${option}"
+                  ${option === round.roundValue ? "selected" : ""}
+                  ${usedByOthers.has(option) ? "disabled" : ""}
+                >${option}차</option>
+              `
+            ).join("");
+
+            const guestOptions = state.guests.length
+              ? state.guests
+                  .map((guest) => {
+                    const attendee = round.attendees.find((item) => item.guestId === guest.id);
+                    const isAttending = Boolean(attendee);
+                    return `
+                      <div class="attendee-row">
+                        <label class="attendee-pill">
+                          <input type="checkbox" data-attendee-id="${guest.id}" ${isAttending ? "checked" : ""} />
+                          <span>${escapeHtml(guest.name)}</span>
+                          ${guest.isNew ? '<span class="badge badge--new">신입</span>' : ""}
+                        </label>
+                      </div>
+                    `;
+                  })
+                  .join("")
+              : '<div class="empty-state">일반 참석자를 먼저 추가해 주세요.</div>';
+
+            return `
+              <article class="round-editor" data-round-id="${round.id}">
+                <div class="round-editor__header">
+                  <div>
+                    <h3>일정 카드 ${round.cardOrder}</h3>
+                    <p class="round-editor__sub">
+                      선택 차수 ${round.roundValue}차, 현재 참석 ${participantCount}명
+                    </p>
+                    ${
+                      state.guests.length && round.attendees.length === 0
+                        ? '<p class="round-editor__sub">참석자를 체크하지 않으면 지금은 벙주만 참석한 것으로 계산됩니다.</p>'
+                        : ""
+                    }
+                  </div>
+                  <button class="button button--danger" type="button" data-remove-round="${round.id}">
+                    카드 삭제
+                  </button>
+                </div>
+
+                <label class="field">
+                  <span class="field__label">일정 제목</span>
+                  <input
+                    type="text"
+                    value="${escapeHtml(round.scheduleTitle)}"
+                    data-field="scheduleTitle"
+                    placeholder="예: 1차 일정제목"
+                  />
+                </label>
+
+                <div class="field-grid">
+                  <label class="field">
+                    <span class="field__label">차수 선택</span>
+                    <select data-field="roundValue">${roundOptions}</select>
+                  </label>
+
+                  <label class="field">
+                    <span class="field__label">원가 총금액</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1000"
+                      value="${round.totalAmount}"
+                      data-field="totalAmount"
+                      placeholder="예: 198000"
+                    />
+                  </label>
+                </div>
+
+                <div class="attendee-grid">
+                  <label class="attendee-pill attendee-pill--fixed">
+                    <input type="checkbox" checked disabled />
+                    <span>${escapeHtml(state.hostName.trim() || "벙주")}</span>
+                    <span class="badge badge--host">자동 포함</span>
+                  </label>
+                  ${guestOptions}
+                </div>
+              </article>
+            `;
+          })
+          .join("");
+      }
+
+      function renderValidation(messages) {
+        if (!messages.length) {
+          dom.validationBox.innerHTML = `
+            <div class="validation-card validation-card--ok">
+              입력값이 유효합니다. 현재 상태는 브라우저에 자동 저장됩니다.
+            </div>
+          `;
+          return;
+        }
+
+        dom.validationBox.innerHTML = messages
+          .map(
+            (message) => `
+              <div class="validation-card">${escapeHtml(message)}</div>
+            `
+          )
+          .join("");
+      }
+
+      function renderSummaryCards(summary) {
+        const cards = [
+          {
+            label: "원가 합계",
+            value: formatWon(summary.grandOriginalTotal),
+            note: `${summary.cardCount}개 일정 카드 기준`,
+          },
+          {
+            label: "벙주 할인 합계",
+            value: formatWon(summary.grandHostDiscount),
+            note: "벙주 혜택 반영 금액",
+          },
+          {
+            label: "벙주 본인 부담",
+            value: formatWon(summary.hostBurden),
+            note: escapeHtml(summary.hostName),
+          },
+          {
+            label: "지금 받을 금액",
+            value: formatWon(summary.collectNow),
+            note: "입금 필요/추가 입금 합계",
+          },
+          {
+            label: "지금 환불할 금액",
+            value: formatWon(summary.refundNow),
+            note: "신입 선입금 초과분 환불",
+          },
+          {
+            label: "신입 선입금 총액",
+            value: formatWon(summary.totalAdvance),
+            note: `${summary.newAppliedCount}명 1회 적용`,
+          },
+        ];
+
+        dom.summaryCards.innerHTML = cards
+          .map(
+            (card) => `
+              <div class="summary-card">
+                <span class="summary-card__label">${card.label}</span>
+                <span class="summary-card__value">${card.value}</span>
+                <span class="summary-card__note">${card.note}</span>
+              </div>
+            `
+          )
+          .join("");
+      }
+
+      function renderRoundResults(rounds) {
+        if (!rounds.length) {
+          dom.roundResults.innerHTML = '<div class="empty-state">아직 일정 카드 데이터가 없습니다.</div>';
+          return;
+        }
+
+        dom.roundResults.innerHTML = rounds
+          .map((round) => {
+            const rows = round.assignments
+              .map(
+                (assignment) => `
+                  <tr>
+                    <td class="text-strong" data-label="이름">
+                      <span class="cell-value">${escapeHtml(assignment.name)}</span>
+                    </td>
+                    <td data-label="구분">
+                      <div class="cell-status">
+                        ${assignment.isHost ? '<span class="badge badge--host">벙주</span>' : ""}
+                        ${assignment.isNew ? '<span class="badge badge--new">신입</span>' : ""}
+                        ${!assignment.isHost && !assignment.isNew ? '<span class="text-muted">일반</span>' : ""}
+                      </div>
+                    </td>
+                    <td data-label="부담 금액"><span class="cell-value">${formatWon(assignment.share)}</span></td>
+                  </tr>
+                `
+              )
+              .join("");
+
+            return `
+              <article class="round-result">
+                <div class="round-result__top">
+                  <div>
+                    <h3>${escapeHtml(round.displayTitle)}</h3>
+                    <p class="text-muted">
+                      ${round.roundLabel} · 일정 카드 ${round.cardOrder} · 원가 ${formatWon(round.originalTotal)}
+                    </p>
+                  </div>
+                  <div class="round-result__stats">
+                    <span class="mini-stat">참석 ${round.participantCount}명</span>
+                    <span class="mini-stat">벙주 혜택 ${formatWon(round.hostDiscount)}</span>
+                    <span class="mini-stat">잔여 분배 ${round.distributedRemainder}원</span>
+                  </div>
+                </div>
+
+                <div class="table-shell">
+                  <table class="result-table result-table--round">
+                    <thead>
+                      <tr>
+                        <th>이름</th>
+                        <th>구분</th>
+                        <th>부담 금액</th>
+                      </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                  </table>
+                </div>
+              </article>
+            `;
+          })
+          .join("");
+      }
+
+      function renderTotalResults(participants, summary) {
+        if (!participants.length) {
+          dom.totalResults.innerHTML = '<div class="empty-state">총합 정산 대상이 아직 없습니다.</div>';
+          return;
+        }
+
+        const rows = participants
+          .map((participant) => {
+            const badges = [
+              participant.isHost ? '<span class="badge badge--host">벙주</span>' : "",
+              participant.wasNew ? '<span class="badge badge--new">신입 1회 적용</span>' : "",
+            ]
+              .filter(Boolean)
+              .join(" ");
+
+            const statusClass =
+              participant.statusTone === "success"
+                ? "badge--success"
+                : participant.statusTone === "warning"
+                  ? "badge--warning"
+                  : participant.statusTone === "danger"
+                    ? "badge--danger"
+                    : "badge--info";
+
+            return `
+              <tr>
+                <td data-label="이름">
+                  <div class="cell-stack">
+                    <div class="text-strong">${escapeHtml(participant.name)}</div>
+                    <div class="cell-badges">${badges || '<span class="text-muted">일반 참석자</span>'}</div>
+                  </div>
+                </td>
+                <td data-label="참석 일정"><div class="cell-joined">${participant.joinedRounds.join(", ") || "-"}</div></td>
+                <td data-label="누적 부담액"><span class="cell-value">${formatWon(participant.totalAssigned)}</span></td>
+                <td data-label="선입금"><span class="cell-value">${formatWon(participant.advanceApplied)}</span></td>
+                <td data-label="현재 상태">
+                  <div class="cell-status"><span class="badge ${statusClass}">${participant.statusLabel}</span></div>
+                </td>
+                <td class="text-strong" data-label="현재 정산액"><span class="cell-value">${formatWon(participant.currentAmount)}</span></td>
+              </tr>
+            `;
+          })
+          .join("");
+
+        dom.totalResults.innerHTML = `
+          <div class="hint">
+            ${escapeHtml(summary.hostName)} 기준 입금 계좌는
+            <strong>${escapeHtml(summary.accountDisplay)}</strong> 입니다.
+          </div>
+          <div class="hint">
+            지금 받을 돈은 <strong>${formatWon(summary.collectNow)}</strong>, 환불할 돈은
+            <strong>${formatWon(summary.refundNow)}</strong>입니다.
+          </div>
+          <table class="result-table result-table--total">
+            <thead>
+              <tr>
+                <th>이름</th>
+                <th>참석 일정</th>
+                <th>누적 부담액</th>
+                <th>선입금</th>
+                <th>현재 상태</th>
+                <th>현재 정산액</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        `;
+      }
+
+      function calculateSettlement() {
+        const validationMessages = validateState();
+        const hostName = state.hostName.trim() || "벙주";
+        const rounds = state.rounds.map((round) => calculateRound(round));
+        const participantMap = new Map();
+
+        participantMap.set("host", {
+          id: "host",
+          name: hostName,
+          isHost: true,
+          wasNew: false,
+          totalAssigned: 0,
+          joinedRounds: [],
+        });
+
+        state.guests.forEach((guest) => {
+          participantMap.set(guest.id, {
+            id: guest.id,
+            name: guest.name,
+            isHost: false,
+            wasNew: false,
+            totalAssigned: 0,
+            joinedRounds: [],
+          });
+        });
+
+        rounds.forEach((round) => {
+          round.assignments.forEach((assignment) => {
+            const participant = participantMap.get(assignment.id);
+            if (!participant) {
+              return;
+            }
+
+            participant.totalAssigned += assignment.share;
+            participant.joinedRounds.push(round.displayTitle);
+            if (assignment.isNew) {
+              participant.wasNew = true;
+            }
+          });
+        });
+
+        const participants = Array.from(participantMap.values()).map((participant) => {
+          if (participant.isHost) {
+            return {
+              ...participant,
+              advanceApplied: 0,
+              currentAmount: participant.totalAssigned,
+              statusLabel: "본인 부담",
+              statusTone: "info",
+            };
+          }
+
+          if (!participant.joinedRounds.length) {
+            return {
+              ...participant,
+              advanceApplied: 0,
+              currentAmount: 0,
+              statusLabel: "미참석",
+              statusTone: "info",
+            };
+          }
+
+          if (!participant.wasNew) {
+            return {
+              ...participant,
+              advanceApplied: 0,
+              currentAmount: participant.totalAssigned,
+              statusLabel: "입금 필요",
+              statusTone: participant.totalAssigned > 0 ? "warning" : "info",
+            };
+          }
+
+          const difference = participant.totalAssigned - NEW_MEMBER_ADVANCE;
+          if (difference > 0) {
+            return {
+              ...participant,
+              advanceApplied: NEW_MEMBER_ADVANCE,
+              currentAmount: difference,
+              statusLabel: "추가 입금",
+              statusTone: "warning",
+            };
+          }
+
+          if (difference < 0) {
+            return {
+              ...participant,
+              advanceApplied: NEW_MEMBER_ADVANCE,
+              currentAmount: Math.abs(difference),
+              statusLabel: "환불 예정",
+              statusTone: "success",
+            };
+          }
+
+          return {
+            ...participant,
+            advanceApplied: NEW_MEMBER_ADVANCE,
+            currentAmount: 0,
+            statusLabel: "정산 완료",
+            statusTone: "success",
+          };
+        });
+
+        const host = participants.find((participant) => participant.isHost);
+        const collectNow = participants.reduce((sum, participant) => {
+          if (participant.statusLabel === "입금 필요" || participant.statusLabel === "추가 입금") {
+            return sum + participant.currentAmount;
+          }
+          return sum;
+        }, 0);
+        const refundNow = participants.reduce((sum, participant) => {
+          return participant.statusLabel === "환불 예정" ? sum + participant.currentAmount : sum;
+        }, 0);
+
+        return {
+          validationMessages,
+          rounds,
+          participants,
+          summary: {
+            hostName,
+            accountDisplay: buildAccountDisplay(),
+            cardCount: rounds.length,
+            grandOriginalTotal: rounds.reduce((sum, round) => sum + round.originalTotal, 0),
+            grandHostDiscount: rounds.reduce((sum, round) => sum + round.hostDiscount, 0),
+            hostBurden: host ? host.totalAssigned : 0,
+            collectNow,
+            refundNow,
+            totalAdvance: participants.reduce((sum, participant) => sum + participant.advanceApplied, 0),
+            newAppliedCount: participants.filter((participant) => participant.advanceApplied > 0).length,
+          },
+        };
+      }
+
+      function calculateRound(round) {
+        const hostName = state.hostName.trim() || "벙주";
+        const guestAttendees = round.attendees
+          .map((attendee) => {
+            const guest = state.guests.find((item) => item.id === attendee.guestId);
+            if (!guest) {
+              return null;
+            }
+
+            return {
+              id: guest.id,
+              name: guest.name,
+              isHost: false,
+              isNew: Boolean(guest.isNew),
+            };
+          })
+          .filter(Boolean);
+
+        const participantCount = 1 + guestAttendees.length;
+        const hostDiscount = getHostDiscount(participantCount, round.roundValue);
+        const nonHostCount = Math.max(participantCount - 1, 0);
+        const rawHostAmount = Math.max(round.totalAmount / Math.max(participantCount, 1) - hostDiscount, 0);
+        const rawNonHostAmount =
+          nonHostCount > 0 ? (round.totalAmount - rawHostAmount) / nonHostCount : round.totalAmount;
+
+        let hostShare = Math.floor(rawHostAmount);
+        const guestShares = guestAttendees.map((guest) => ({
+          ...guest,
+          share: Math.floor(rawNonHostAmount),
+        }));
+
+        const baseAssigned = hostShare + guestShares.reduce((sum, guest) => sum + guest.share, 0);
+        let remainder = Math.max(round.totalAmount - baseAssigned, 0);
+        const distributedRemainder = remainder;
+
+        if (guestShares.length) {
+          let index = 0;
+          while (remainder > 0) {
+            guestShares[index % guestShares.length].share += 1;
+            remainder -= 1;
+            index += 1;
+          }
+        } else {
+          hostShare += remainder;
+        }
+
+        const assignments = [
+          {
+            id: "host",
+            name: hostName,
+            isHost: true,
+            isNew: false,
+            share: hostShare,
+          },
+          ...guestShares,
+        ];
+
+        return {
+          id: round.id,
+          cardOrder: round.cardOrder,
+          roundValue: round.roundValue,
+          roundLabel: `${round.roundValue}차`,
+          displayTitle: buildRoundDisplayTitle(round),
+          originalTotal: round.totalAmount,
+          hostDiscount,
+          participantCount,
+          distributedRemainder,
+          assignedTotal: assignments.reduce((sum, assignment) => sum + assignment.share, 0),
+          assignments,
+        };
+      }
+
+      function validateState() {
+        const messages = [];
+
+        if (!state.hostName.trim()) {
+          messages.push("벙주 닉네임을 입력하면 결과가 더 명확하게 표시됩니다.");
+        }
+
+        const names = new Set();
+        const roundValues = new Set();
+        state.guests.forEach((guest) => {
+          if (!guest.name.trim()) {
+            messages.push("빈 닉네임 참석자가 있습니다.");
+            return;
+          }
+
+          if (names.has(guest.name)) {
+            messages.push("같은 닉네임의 참석자가 중복되어 있습니다.");
+          }
+          names.add(guest.name);
+        });
+
+        if (state.hostName.trim() && names.has(state.hostName.trim())) {
+          messages.push("벙주 닉네임과 동일한 참석자 닉네임이 있습니다.");
+        }
+
+        if (state.accountType && !state.accountNumber.trim()) {
+          messages.push("계좌 유형/기관을 선택했다면 계좌번호도 입력해 주세요.");
+        }
+
+        if (!state.accountType && state.accountNumber.trim()) {
+          messages.push("계좌번호를 입력했다면 계좌 유형/기관도 선택해 주세요.");
+        }
+
+        state.rounds.forEach((round) => {
+          if (roundValues.has(round.roundValue)) {
+            messages.push("같은 차수는 중복 선택할 수 없습니다.");
+          }
+          roundValues.add(round.roundValue);
+
+          if (!round.scheduleTitle.trim()) {
+            messages.push(`${round.roundValue}차(일정 카드 ${round.cardOrder}) 일정 제목을 입력해 주세요.`);
+          }
+
+          if (round.totalAmount <= 0) {
+            messages.push(`${round.roundValue}차(일정 카드 ${round.cardOrder}) 원가 총금액을 입력해 주세요.`);
+          }
+
+          if (state.guests.length > 0 && round.attendees.length === 0) {
+            messages.push(
+              `${round.roundValue}차(일정 카드 ${round.cardOrder}) 참석자를 체크해 주세요. 지금은 벙주만 참석한 것으로 계산됩니다.`
+            );
+          }
+        });
+
+        const newGuestIds = state.guests.filter((guest) => guest.isNew).map((guest) => guest.id);
+        const joinedNewGuestIds = new Set(
+          state.rounds.flatMap((round) => round.attendees.map((attendee) => attendee.guestId))
+        );
+
+        if (newGuestIds.some((guestId) => !joinedNewGuestIds.has(guestId))) {
+          messages.push("신입으로 표시된 참석자가 아직 일정 카드에 체크되지 않아 선입금 3만원이 반영되지 않았습니다.");
+        }
+
+        return Array.from(new Set(messages));
+      }
+
+      function getHostDiscount(participantCount, roundValue) {
+        if (roundValue < 3) {
+          return participantCount >= 6 ? 10000 : 0;
+        }
+
+        return participantCount >= 8 ? 20000 : 0;
+      }
+
+      function buildRoundSummaryText(calculations) {
+        const lines = [
+          "일정별 정산 요약",
+          `벙주: ${calculations.summary.hostName}`,
+          `계좌: ${calculations.summary.accountDisplay}`,
+          "",
+        ];
+
+        calculations.rounds.forEach((round) => {
+          lines.push(
+            `${round.displayTitle} | 원가 ${formatWon(round.originalTotal)} | 벙주 혜택 ${formatWon(round.hostDiscount)} | 참석 ${round.participantCount}명`
+          );
+          round.assignments.forEach((assignment) => {
+            const tag = assignment.isHost ? "벙주" : assignment.isNew ? "신입" : "일반";
+            lines.push(`- ${assignment.name} (${tag}) : ${formatWon(assignment.share)}`);
+          });
+          lines.push("");
+        });
+
+        return lines.join("\n").trim();
+      }
+
+      function buildTotalSummaryText(calculations) {
+        const lines = [
+          "최종 총합 정산",
+          `벙주: ${calculations.summary.hostName}`,
+          `계좌: ${calculations.summary.accountDisplay}`,
+          `원가 합계: ${formatWon(calculations.summary.grandOriginalTotal)}`,
+          `벙주 할인 합계: ${formatWon(calculations.summary.grandHostDiscount)}`,
+          `벙주 본인 부담: ${formatWon(calculations.summary.hostBurden)}`,
+          `지금 받을 금액: ${formatWon(calculations.summary.collectNow)}`,
+          `지금 환불할 금액: ${formatWon(calculations.summary.refundNow)}`,
+          `신입 선입금 총액: ${formatWon(calculations.summary.totalAdvance)}`,
+          "",
+          "[참석자별 최종 상태]",
+        ];
+
+        calculations.participants.forEach((participant) => {
+          const joined = participant.joinedRounds.join(", ") || "-";
+          lines.push(
+            `- ${participant.name} | ${participant.statusLabel} ${formatWon(participant.currentAmount)} | 누적 부담 ${formatWon(participant.totalAssigned)} | 선입금 ${formatWon(participant.advanceApplied)} | 참석 ${joined}`
+          );
+        });
+
+        return lines.join("\n");
+      }
+
+      async function copyToClipboard(text, message) {
+        try {
+          if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(text);
+          } else {
+            fallbackCopyText(text);
+          }
+          setFeedback(message);
+        } catch (error) {
+          try {
+            fallbackCopyText(text);
+            setFeedback(message);
+          } catch (fallbackError) {
+            setFeedback("클립보드 복사에 실패했습니다. 브라우저 권한을 확인해 주세요.");
+          }
+        }
+      }
+
+      function fallbackCopyText(text) {
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        textarea.setAttribute("readonly", "");
+        textarea.style.position = "fixed";
+        textarea.style.top = "-9999px";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+
+      function setFeedback(message) {
+        dom.copyFeedback.textContent = message;
+      }
+
+      function updateFieldAccessibility(validationMessages) {
+        const hostInvalid =
+          !state.hostName.trim() || state.guests.some((guest) => guest.name === state.hostName.trim());
+        dom.hostNameInput.setAttribute("aria-invalid", String(hostInvalid));
+        dom.accountTypeSelect.setAttribute(
+          "aria-invalid",
+          String(validationMessages.some((message) => message.includes("계좌 유형/기관")))
+        );
+        dom.accountNumberInput.setAttribute(
+          "aria-invalid",
+          String(validationMessages.some((message) => message.includes("계좌번호")))
+        );
+
+        document.querySelectorAll("[data-field='totalAmount']").forEach((input) => {
+          input.setAttribute("aria-invalid", String(toInteger(input.value) <= 0));
+        });
+
+        document.querySelectorAll("[data-field='scheduleTitle']").forEach((input) => {
+          input.setAttribute("aria-invalid", String(!input.value.trim()));
+        });
+      }
+
+      function buildAccountDisplay() {
+        const accountType = state.accountType.trim();
+        const accountNumber = state.accountNumber.trim();
+
+        if (accountType && accountNumber) {
+          return `${accountType} ${accountNumber}`;
+        }
+
+        if (accountType) {
+          return accountType;
+        }
+
+        if (accountNumber) {
+          return accountNumber;
+        }
+
+        return "계좌 미입력";
+      }
+
+      function buildRoundDisplayTitle(round) {
+        const title = round.scheduleTitle.trim();
+        if (title) {
+          return title;
+        }
+
+        return `${round.roundValue}차 일정 카드 ${round.cardOrder}`;
+      }
+
+      function formatWon(value) {
+        return `${Number(value || 0).toLocaleString("ko-KR")}원`;
+      }
+
+      function toInteger(value) {
+        const parsed = Number.parseInt(value, 10);
+        return Number.isFinite(parsed) ? parsed : 0;
+      }
+
+      function escapeHtml(value) {
+        return String(value)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#39;");
+      }
+    </script>
+  </body>
+</html>
