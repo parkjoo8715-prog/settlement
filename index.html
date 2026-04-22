@@ -865,7 +865,7 @@
     <main class="app-shell">
       <section class="service-header">
         <div class="service-header__intro">
-          <h1>다성사 벙주 정산 프로그램</h1>
+          <h1>정산 프로그램</h1>
         </div>
 
         <div class="service-header__actions">
@@ -893,13 +893,13 @@
 
               <label class="field">
                 <span class="field__label">벙주 닉네임</span>
-                <input id="hostNameInput" type="text" maxlength="10" placeholder="예: 벙주민트" />
+                <input id="hostNameInput" type="text" maxlength="10" autocomplete="off" placeholder="예: 벙주민트" />
               </label>
 
               <div class="field-grid">
                 <label class="field">
                   <span class="field__label">계좌 유형/기관</span>
-                  <select id="accountTypeSelect" aria-label="계좌 유형 또는 기관 선택"></select>
+                  <select id="accountTypeSelect" aria-label="계좌 유형 또는 기관 선택" autocomplete="off"></select>
                 </label>
 
                 <label class="field">
@@ -909,6 +909,7 @@
                     type="text"
                     inputmode="numeric"
                     maxlength="20"
+                    autocomplete="off"
                     placeholder="예: 3333-12-1234567"
                   />
                 </label>
@@ -923,10 +924,10 @@
                 <span class="badge badge--info">벙주는 자동 포함</span>
               </div>
 
-              <form id="guestForm" class="inline-form inline-form--guest">
+              <form id="guestForm" class="inline-form inline-form--guest" autocomplete="off">
                 <label class="field">
                   <span class="field__label">참석자 닉네임</span>
-                  <input id="guestNameInput" type="text" maxlength="10" placeholder="예: 리버" />
+                  <input id="guestNameInput" type="text" maxlength="10" autocomplete="off" placeholder="예: 리버" />
                 </label>
 
                 <label class="checkbox checkbox--inline">
@@ -1463,8 +1464,19 @@
         } catch (error) {
           // Ignore storage failures in the prototype.
         }
+        clearRenderedUi();
         setFeedback("서비스 화면을 초기 상태로 되돌렸습니다.");
         render();
+      }
+
+      function clearRenderedUi() {
+        dom.copyFeedback.textContent = "";
+        dom.guestList.innerHTML = "";
+        dom.roundEditors.innerHTML = "";
+        dom.validationBox.innerHTML = "";
+        dom.summaryCards.innerHTML = "";
+        dom.roundResults.innerHTML = "";
+        dom.totalResults.innerHTML = "";
       }
 
       function syncInputsFromState() {
