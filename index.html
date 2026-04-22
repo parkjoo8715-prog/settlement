@@ -865,7 +865,7 @@
     <main class="app-shell">
       <section class="service-header">
         <div class="service-header__intro">
-          <h1>정산시스템</h1>
+          <h1>다성사 벙주 정산 프로그램</h1>
           <p class="service-header__lead">
             일정별 참석자를 체크하고, 신입은 참석자 목록에서 한 번만 설정해 최종 정산까지 바로 확인합니다.
           </p>
@@ -896,7 +896,7 @@
 
               <label class="field">
                 <span class="field__label">벙주 닉네임</span>
-                <input id="hostNameInput" type="text" placeholder="예: 벙주민트" />
+                <input id="hostNameInput" type="text" maxlength="10" placeholder="예: 벙주민트" />
               </label>
 
               <div class="field-grid">
@@ -911,6 +911,7 @@
                     id="accountNumberInput"
                     type="text"
                     inputmode="numeric"
+                    maxlength="20"
                     placeholder="예: 3333-12-1234567"
                   />
                 </label>
@@ -928,7 +929,7 @@
               <form id="guestForm" class="inline-form inline-form--guest">
                 <label class="field">
                   <span class="field__label">참석자 닉네임</span>
-                  <input id="guestNameInput" type="text" placeholder="예: 리버" />
+                  <input id="guestNameInput" type="text" maxlength="10" placeholder="예: 리버" />
                 </label>
 
                 <label class="checkbox checkbox--inline">
@@ -967,9 +968,6 @@
             </div>
 
             <div class="panel__actions">
-              <button class="button button--ghost" id="copyRoundSummaryBtn" type="button">
-                일정별 요약 복사
-              </button>
               <button class="button button--primary" id="copyTotalSummaryBtn" type="button">
                 총합 요약 복사
               </button>
@@ -1089,7 +1087,6 @@
         totalResults: document.querySelector("#totalResults"),
         validationBox: document.querySelector("#validationBox"),
         copyFeedback: document.querySelector("#copyFeedback"),
-        copyRoundSummaryBtn: document.querySelector("#copyRoundSummaryBtn"),
         copyTotalSummaryBtn: document.querySelector("#copyTotalSummaryBtn"),
         resetAllBtn: document.querySelector("#resetAllBtn"),
       };
@@ -1194,7 +1191,9 @@
 
       function bindEvents() {
         dom.hostNameInput.addEventListener("input", (event) => {
-          state.hostName = event.target.value;
+          const sanitized = sanitizeNickname(event.target.value);
+          event.target.value = sanitized;
+          state.hostName = sanitized;
           render();
         });
 
@@ -1204,7 +1203,9 @@
         });
 
         dom.accountNumberInput.addEventListener("input", (event) => {
-          state.accountNumber = event.target.value;
+          const sanitized = sanitizeDigits(event.target.value, 20);
+          event.target.value = sanitized;
+          state.accountNumber = sanitized;
           renderResultsOnly();
         });
 
@@ -1252,11 +1253,6 @@
           removeRound(button.dataset.removeRound);
         });
 
-        dom.copyRoundSummaryBtn.addEventListener("click", async () => {
-          const calculations = calculateSettlement();
-          await copyToClipboard(buildRoundSummaryText(calculations), "일정별 요약을 복사했습니다.");
-        });
-
         dom.copyTotalSummaryBtn.addEventListener("click", async () => {
           const calculations = calculateSettlement();
           await copyToClipboard(buildTotalSummaryText(calculations), "총합 요약을 복사했습니다.");
@@ -1298,7 +1294,9 @@
         }
 
         if (event.target.matches("[data-field='totalAmount']")) {
-          round.totalAmount = Math.max(0, toInteger(event.target.value));
+          const sanitized = sanitizeDigits(event.target.value);
+          event.target.value = sanitized;
+          round.totalAmount = Math.max(0, toInteger(sanitized));
           renderResultsOnly();
           return;
         }
@@ -1386,7 +1384,7 @@
       }
 
       function addGuest() {
-        const name = dom.guestNameInput.value.trim();
+        const name = sanitizeNickname(dom.guestNameInput.value).trim();
         const isNew = dom.guestNewInput.checked;
 
         if (!name) {
@@ -1622,9 +1620,8 @@
                   <label class="field">
                     <span class="field__label">원가 총금액</span>
                     <input
-                      type="number"
-                      min="0"
-                      step="1000"
+                      type="text"
+                      inputmode="numeric"
                       value="${round.totalAmount}"
                       data-field="totalAmount"
                       placeholder="예: 198000"
@@ -2254,6 +2251,14 @@
 
       function formatWon(value) {
         return `${Number(value || 0).toLocaleString("ko-KR")}원`;
+      }
+
+      function sanitizeDigits(value, maxLength = Infinity) {
+        return String(value).replace(/\D/g, "").slice(0, maxLength);
+      }
+
+      function sanitizeNickname(value) {
+        return String(value).slice(0, 10);
       }
 
       function toInteger(value) {
